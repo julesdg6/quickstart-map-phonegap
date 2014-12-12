@@ -3,7 +3,7 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-    <title>Basic Map</title>
+    <title>Basic GPS Map</title>
     <style  type="text/css">
         body, html {
             width: 100%;
@@ -18,91 +18,87 @@
         }
     </style>
 </head>
-<body class="claro">
-<div id="mainWindow" data-dojo-type="BorderContainer" data-dojo-props="design:'headline'" style="width:100%; height:100%;">
-    <div id="header" class="shadow roundedCorners" data-dojo-type="ContentPane" data-dojo-props="region:'top'">
-        <div id="title"></div>
-        <div id="subtitle"></div>
-    </div>
-    <div id="mapDiv" class="roundedCorners shadow" data-dojo-type="ContentPane" data-dojo-props="region:'center'"></div>
-    <div id="rightPane" class="roundedCorners shadow" data-dojo-type="ContentPane" data-dojo-props="region:'right'" >
-        <div id="legend"></div>
-    </div>
-</div>
-<!-- Load the library references for ArcGIS API for JavaScript -->
-<link rel="stylesheet" type="text/css" href="http://js.arcgis.com/3.8/js/esri/css/esri.css">
-<script type="text/javascript" src="http://js.arcgis.com/3.8compact"></script>
-<script type="text/javascript" src="cordova.js"></script>
-
-<script>
+<body>
+    <div id="mapDiv"></div>
     
-    var app = {
-        // Application Constructor
-        initialize: function() {
-            this.bindEvents();
-        },
-        // Bind Event Listeners
-        //
-        // Bind any events that are required on startup. Common events are:
-        // 'load', 'deviceready', 'offline', and 'online'.
-        bindEvents: function() {
-            document.addEventListener('deviceready', this.onDeviceReady, false);
-        },
-        // deviceready Event Handler
-        //
-        // The scope of 'this' is the event. In order to call the 'receivedEvent'
-        // function, we must explicity call 'app.receivedEvent(...);'
-        onDeviceReady: function() {
-            app.receivedEvent('deviceready');
-        },
-        // Update DOM on a Received Event
-        receivedEvent: function(id) {
-            console.log('Received Event: ' + id);
-            mapInit();
-        }
-    };      
-    
-    var mapInit = function(){ 
-        require(["esri/map","esri/arcgis/utils","esri/dijit/Legend","esri/dijit/Scalebar","dijit/layout/BorderContainer",
-        "dijit/layout/ContentPane"],
-            function(Map,utils,Legend,Scalebar,BorderContainer,ContentPane) {
-                // Create map
-
-                var map = null, helper;
-                utils.arcgisUrl = utils.arcgisUrl.replace("file:", "http:");
-                utils.createMap("4778fee6371d4e83a22786029f30c7e1", "mapDiv")
-                    .then(function(response) {
-                        dojo.byId("title").innerHTML = response.itemInfo.item.title;
-                        dojo.byId("subtitle").innerHTML = response.itemInfo.item.snippet;
-
-                        map = response.map;                    
-
-                        //add the scalebar 
-                        var scalebar = new Scalebar({
-                            map: map,
-                            scalebarUnit: "english"
-                        });
-                    
-                        //add the legend. Note that we use the utility method getLegendLayers to get 
-                        //the layers to display in the legend from the createMap response.
-                        var legendLayers = arcgisUtils.getLegendLayers(response); 
-                        var legendDijit = new Legend({
-                            map: map,
-                            layerInfos: legendLayers
-                        },"legend");
-                        legendDijit.startup();
-
-                },function(error){
-                    console.log("Map creation failed: ", dojo.toJson(error));
-                });
+    <!-- Load the library and CSS references for ArcGIS API for JavaScript -->
+    <link rel="stylesheet" type="text/css" href="http://js.arcgis.com/3.8/js/esri/css/esri.css">
+    <script type="text/javascript" src="http://js.arcgis.com/3.8compact"></script>   
+    <script type="text/javascript" src="cordova.js"></script>
+    <script>
+        var app = {
+            // Application Constructor
+            initialize: function() {
+                this.bindEvents();
+            },
+            // Bind Event Listeners
+            //
+            // Bind any events that are required on startup. Common events are:
+            // 'load', 'deviceready', 'offline', and 'online'.
+            bindEvents: function() {
+                document.addEventListener('deviceready', this.onDeviceReady, false);
+            },
+            // deviceready Event Handler
+            //
+            // The scope of 'this' is the event. In order to call the 'receivedEvent'
+            // function, we must explicity call 'app.receivedEvent(...);'
+            onDeviceReady: function() {
+                app.receivedEvent('deviceready');
+            },
+            // Update DOM on a Received Event
+            receivedEvent: function(id) {  
+                console.log('Received Event: ' + id);
+                mapInit();
             }
-        );
-    }
-    
-    app.initialize();
+        }; 
         
-</script>
-
-
+        var mapInit = function(){
+            console.log("Loading Map...");
+            require(["esri/map","esri/symbols/PictureMarkerSymbol","esri/graphic",
+                "esri/SpatialReference",
+                "esri/geometry/Point",
+                "dojo/on","dojo/domReady!"],
+                function(Map,PictureMarkerSymbol,Graphic,SpatialReference,Point,on) {
+                    // Create map
+                    var map = new Map("mapDiv",{
+                        basemap: "streets",
+                        center: [-98.6, 39.8],
+                        zoom: 3
+                    });
+                    
+                    // Wait until map has loaded before starting geolocation
+                    map.on("load",startGeolocation);                                        
+                    // Create the marker symbol
+                    var markerSymbol = new PictureMarkerSymbol({
+                        "angle":0,
+                        "xoffset":0,
+                        "yoffset":0,
+                        "type":"esriPMS",
+                        "url":"images/green-pin.png",
+                        "width":35,
+                        "height":35
+                    })
+                    function startGeolocation(){                                                         
+                        console.log("Starting geolocation...");
+                        navigator.geolocation.getCurrentPosition(locationSuccess,locationError,{setHighAccuracy:true});
+                    }
+                    // Handle location success
+                    function locationSuccess(position){
+                        if(position.coords.latitude != null || position.coords.longitude != null){
+                            console.log("long: " + position.coords.longitude + ", lat: " + position.coords.latitude);
+                            var wgsPt = new Point(position.coords.longitude,position.coords.latitude, new SpatialReference({wkid:4326})); 
+                            map.graphics.add(new Graphic(wgsPt, markerSymbol));
+                            map.centerAndZoom(wgsPt, 12);
+                        }
+                    }
+                    function locationError(err){
+                        console.log("locationError: " + err.toString());
+                    }
+                }
+            );       
+        }
+        
+        app.initialize();        
+    </script>       
 </body>
 </html>
